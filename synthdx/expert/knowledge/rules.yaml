@@ -1,0 +1,468 @@
+# SynthDx knowledge base - coronary artery disease (CAD) screening rules.
+#
+# DISCLAIMER: These rules were written for an ACADEMIC DEMONSTRATION of
+# rule-based reasoning with certainty factors. They are simplified, are not
+# validated, and are NOT medical advice or clinical guidance.
+#
+# Rule format
+#   id          unique id
+#   name        short human-readable name
+#   category    grouping shown in the Rule Browser
+#   priority    conflict-resolution priority (higher fires first). Rules that
+#               derive intermediate findings have priority 3, rules that conclude
+#               the diagnosis 2, and recommendation rules 1, so the agenda
+#               naturally works bottom-up through the reasoning levels.
+#   if          list of conditions, ALL must hold (conjunction)
+#                 {fact, op, value}     op in: ==, !=, >, >=, <, <=, in, is
+#                 "is" tests a hypothesis by its certainty factor:
+#                   is true  -> CF >= premise threshold (or min_cf)
+#                   is false -> CF <= -premise threshold
+#   then        {fact, value}; the fact accumulates CF evidence (MYCIN)
+#   cf          rule certainty factor in [-1, 1]; negative = evidence against
+#   rationale   why the rule is plausible + source note
+
+version: 1.0
+disclaimer: "Academic demonstration only - not medical advice or clinical guidance."
+
+rules:
+  # ------------------------------------------------------------ ischaemia --
+  - id: R01
+    name: Silent (asymptomatic) presentation
+    category: ischaemia
+    priority: 3
+    if:
+      - {fact: chest_pain, op: "==", value: asymptomatic}
+    then: {fact: ischemia_evidence}
+    cf: 0.5
+    rationale: >-
+      In the Cleveland cohort (patients referred for angiography) 'asymptomatic'
+      chest pain is strongly associated with disease, reflecting silent ischaemia.
+      Source: Detrano et al., Am J Cardiol 1989.
+
+  - id: R02
+    name: Typical angina provoked by exercise
+    category: ischaemia
+    priority: 3
+    if:
+      - {fact: chest_pain, op: "==", value: typical_angina}
+      - {fact: exercise_angina, op: "==", value: true}
+    then: {fact: ischemia_evidence}
+    cf: 0.7
+    rationale: >-
+      Exertional substernal pain relieved by rest is the classic anginal triad
+      (Diamond-Forrester classification).
+
+  - id: R03
+    name: Exercise-induced angina
+    category: ischaemia
+    priority: 3
+    if:
+      - {fact: exercise_angina, op: "==", value: true}
+    then: {fact: ischemia_evidence}
+    cf: 0.5
+    rationale: Angina appearing during a stress test suggests demand ischaemia.
+
+  - id: R04
+    name: Significant ST depression on exercise
+    category: ischaemia
+    priority: 3
+    if:
+      - {fact: significant_st_depression, op: "==", value: true}
+    then: {fact: ischemia_evidence}
+    cf: 0.6
+    rationale: >-
+      Horizontal/downsloping ST depression >= 1-2 mm is the standard positive
+      exercise-ECG criterion (fuzzy membership grows from 1.0 to 3.0 mm).
+
+  - id: R05
+    name: Flat ST slope with ST depression
+    category: ischaemia
+    priority: 3
+    if:
+      - {fact: st_slope, op: "==", value: flat}
+      - {fact: oldpeak, op: ">=", value: 1.0}
+    then: {fact: ischemia_evidence}
+    cf: 0.5
+    rationale: Flat (horizontal) ST depression is more specific than upsloping.
+
+  - id: R06
+    name: Downsloping ST segment
+    category: ischaemia
+    priority: 3
+    if:
+      - {fact: st_slope, op: "==", value: downsloping}
+    then: {fact: ischemia_evidence}
+    cf: 0.6
+    rationale: Downsloping ST depression is the most specific exercise-ECG pattern.
+
+  - id: R07
+    name: Non-anginal pain without exertional symptoms
+    category: ischaemia
+    priority: 3
+    if:
+      - {fact: chest_pain, op: in, value: [non_anginal, atypical_angina]}
+      - {fact: exercise_angina, op: "==", value: false}
+    then: {fact: ischemia_evidence}
+    cf: -0.4
+    rationale: Pain unrelated to exertion lowers the pre-test probability of CAD.
+
+  - id: R08
+    name: Normal exercise ECG response
+    category: ischaemia
+    priority: 3
+    if:
+      - {fact: st_depression, op: "==", value: none}
+      - {fact: st_slope, op: "==", value: upsloping}
+    then: {fact: ischemia_evidence}
+    cf: -0.5
+    rationale: No ST depression with an upsloping segment is a normal response.
+
+  # ------------------------------------------------------------ perfusion --
+  - id: R09
+    name: Reversible perfusion defect
+    category: perfusion
+    priority: 3
+    if:
+      - {fact: thal_result, op: "==", value: reversible_defect}
+    then: {fact: perfusion_defect}
+    cf: 0.8
+    rationale: >-
+      A reversible thallium defect indicates inducible ischaemia in a coronary
+      territory (nuclear stress imaging).
+
+  - id: R10
+    name: Fixed perfusion defect
+    category: perfusion
+    priority: 3
+    if:
+      - {fact: thal_result, op: "==", value: fixed_defect}
+    then: {fact: perfusion_defect}
+    cf: 0.6
+    rationale: A fixed defect usually reflects prior infarction (scar).
+
+  - id: R11
+    name: Normal thallium scan
+    category: perfusion
+    priority: 3
+    if:
+      - {fact: thal_result, op: "==", value: normal}
+    then: {fact: perfusion_defect}
+    cf: -0.6
+    rationale: Normal myocardial perfusion makes significant CAD less likely.
+
+  # ------------------------------------------------------------ anatomy ----
+  - id: R12
+    name: Multiple vessels on fluoroscopy
+    category: anatomy
+    priority: 3
+    if:
+      - {fact: ca, op: ">=", value: 2}
+    then: {fact: vessel_disease}
+    cf: 0.9
+    rationale: Calcification visible in >= 2 major vessels signals extensive atherosclerosis.
+
+  - id: R13
+    name: Single vessel on fluoroscopy
+    category: anatomy
+    priority: 3
+    if:
+      - {fact: ca, op: "==", value: 1}
+    then: {fact: vessel_disease}
+    cf: 0.6
+    rationale: One coloured vessel is moderate evidence of coronary atherosclerosis.
+
+  - id: R14
+    name: No vessels on fluoroscopy
+    category: anatomy
+    priority: 3
+    if:
+      - {fact: ca, op: "==", value: 0}
+    then: {fact: vessel_disease}
+    cf: -0.6
+    rationale: Absence of coronary calcification lowers the likelihood of obstructive CAD.
+
+  # ------------------------------------------------------------ exercise ---
+  - id: R15
+    name: Chronotropic incompetence
+    category: exercise capacity
+    priority: 3
+    if:
+      - {fact: low_heart_rate_response, op: "==", value: true}
+    then: {fact: exercise_intolerance}
+    cf: 0.6
+    rationale: >-
+      Failing to reach 85% of age-predicted maximum heart rate (220 - age) is
+      associated with CAD and worse prognosis (fuzzy: 85% -> 65%).
+
+  - id: R16
+    name: Very low peak heart rate
+    category: exercise capacity
+    priority: 3
+    if:
+      - {fact: thalach, op: "<", value: 120}
+    then: {fact: exercise_intolerance}
+    cf: 0.5
+    rationale: A peak heart rate below 120 bpm on a stress test is a poor exercise response.
+
+  - id: R17
+    name: Good heart-rate response
+    category: exercise capacity
+    priority: 3
+    if:
+      - {fact: good_heart_rate_response, op: "==", value: true}
+    then: {fact: exercise_intolerance}
+    cf: -0.5
+    rationale: Reaching or exceeding the age-predicted maximum suggests good functional capacity.
+
+  # ------------------------------------------------------------ risk -------
+  - id: R18
+    name: Hypertension
+    category: risk factors
+    priority: 3
+    if:
+      - {fact: hypertension, op: "==", value: true}
+    then: {fact: risk_factor_burden}
+    cf: 0.4
+    rationale: Elevated resting BP is a major modifiable CAD risk factor (ACC/AHA 2017).
+
+  - id: R19
+    name: Stage 2 hypertension
+    category: risk factors
+    priority: 3
+    if:
+      - {fact: trestbps, op: ">=", value: 140}
+    then: {fact: risk_factor_burden}
+    cf: 0.3
+    rationale: Resting BP >= 140 mm Hg is stage 2 hypertension (ACC/AHA 2017).
+
+  - id: R20
+    name: Hypercholesterolaemia
+    category: risk factors
+    priority: 3
+    if:
+      - {fact: hypercholesterolemia, op: "==", value: true}
+    then: {fact: risk_factor_burden}
+    cf: 0.4
+    rationale: Total cholesterol above ~200-240 mg/dl raises CAD risk (NCEP ATP III).
+
+  - id: R21
+    name: Very high cholesterol
+    category: risk factors
+    priority: 3
+    if:
+      - {fact: chol, op: ">", value: 280}
+    then: {fact: risk_factor_burden}
+    cf: 0.3
+    rationale: Markedly elevated cholesterol adds further risk.
+
+  - id: R22
+    name: Elevated fasting glucose
+    category: risk factors
+    priority: 3
+    if:
+      - {fact: high_fasting_glucose, op: "==", value: true}
+    then: {fact: risk_factor_burden}
+    cf: 0.3
+    rationale: Fasting glucose > 120 mg/dl suggests diabetes, a CAD risk equivalent.
+
+  - id: R23
+    name: Male aged 45 or older
+    category: risk factors
+    priority: 3
+    if:
+      - {fact: is_male, op: "==", value: true}
+      - {fact: age_band, op: in, value: [middle, senior]}
+    then: {fact: risk_factor_burden}
+    cf: 0.4
+    rationale: Male sex and age >= 45 are classic non-modifiable risk factors (Framingham).
+
+  - id: R24
+    name: Advanced age
+    category: risk factors
+    priority: 3
+    if:
+      - {fact: elderly, op: "==", value: true}
+    then: {fact: risk_factor_burden}
+    cf: 0.4
+    rationale: "CAD prevalence increases steadily with age (fuzzy: 50 -> 70 years)."
+
+  - id: R25
+    name: Young woman without risk factors
+    category: risk factors
+    priority: 3
+    if:
+      - {fact: is_male, op: "==", value: false}
+      - {fact: age_band, op: "==", value: young}
+      - {fact: hypertension, op: "==", value: false}
+    then: {fact: risk_factor_burden}
+    cf: -0.5
+    rationale: Pre-menopausal women without hypertension have low baseline risk.
+
+  # ------------------------------------------------------------ ECG --------
+  - id: R26
+    name: Resting ST-T abnormality
+    category: resting ECG
+    priority: 3
+    if:
+      - {fact: rest_ecg, op: "==", value: st_t_abnormality}
+    then: {fact: structural_abnormality}
+    cf: 0.5
+    rationale: Resting ST-T changes may reflect ischaemia or prior injury.
+
+  - id: R27
+    name: Left ventricular hypertrophy
+    category: resting ECG
+    priority: 3
+    if:
+      - {fact: rest_ecg, op: "==", value: lv_hypertrophy}
+    then: {fact: structural_abnormality}
+    cf: 0.4
+    rationale: LVH (Estes criteria) is linked to hypertension and cardiovascular events.
+
+  # ------------------------------------------------------------ diagnosis --
+  - id: R28
+    name: Ischaemia supports CAD
+    category: diagnosis
+    priority: 2
+    if:
+      - {fact: ischemia_evidence, op: is, value: true}
+    then: {fact: heart_disease}
+    cf: 0.6
+    rationale: Clinical and ECG evidence of ischaemia is the core diagnostic signal.
+
+  - id: R29
+    name: Perfusion defect supports CAD
+    category: diagnosis
+    priority: 2
+    if:
+      - {fact: perfusion_defect, op: is, value: true}
+    then: {fact: heart_disease}
+    cf: 0.7
+    rationale: Imaging evidence of a perfusion defect strongly suggests CAD.
+
+  - id: R30
+    name: Vessel disease supports CAD
+    category: diagnosis
+    priority: 2
+    if:
+      - {fact: vessel_disease, op: is, value: true}
+    then: {fact: heart_disease}
+    cf: 0.7
+    rationale: Anatomical evidence of atherosclerosis supports the diagnosis.
+
+  - id: R31
+    name: Ischaemia confirmed by imaging
+    category: diagnosis
+    priority: 2
+    if:
+      - {fact: ischemia_evidence, op: is, value: true}
+      - {fact: perfusion_defect, op: is, value: true}
+    then: {fact: heart_disease}
+    cf: 0.6
+    rationale: Concordant functional and imaging findings are much more specific.
+
+  - id: R32
+    name: Ischaemia with anatomical disease
+    category: diagnosis
+    priority: 2
+    if:
+      - {fact: ischemia_evidence, op: is, value: true}
+      - {fact: vessel_disease, op: is, value: true}
+    then: {fact: heart_disease}
+    cf: 0.6
+    rationale: Symptoms plus visible vessel disease make CAD very likely.
+
+  - id: R33
+    name: Poor exercise capacity
+    category: diagnosis
+    priority: 2
+    if:
+      - {fact: exercise_intolerance, op: is, value: true}
+    then: {fact: heart_disease}
+    cf: 0.3
+    rationale: Reduced exercise capacity is weak, non-specific supporting evidence.
+
+  - id: R34
+    name: High risk-factor burden
+    category: diagnosis
+    priority: 2
+    if:
+      - {fact: risk_factor_burden, op: is, value: true}
+    then: {fact: heart_disease}
+    cf: 0.3
+    rationale: Risk factors raise the pre-test probability but do not establish disease.
+
+  - id: R35
+    name: Resting ECG abnormality
+    category: diagnosis
+    priority: 2
+    if:
+      - {fact: structural_abnormality, op: is, value: true}
+    then: {fact: heart_disease}
+    cf: 0.2
+    rationale: Resting ECG changes are weak, non-specific evidence.
+
+  - id: R36
+    name: No ischaemia and normal perfusion
+    category: diagnosis
+    priority: 2
+    if:
+      - {fact: ischemia_evidence, op: is, value: false}
+      - {fact: perfusion_defect, op: is, value: false}
+    then: {fact: heart_disease}
+    cf: -0.7
+    rationale: Normal functional and imaging tests have high negative predictive value.
+
+  - id: R37
+    name: No vessel disease and no ischaemia
+    category: diagnosis
+    priority: 2
+    if:
+      - {fact: vessel_disease, op: is, value: false}
+      - {fact: ischemia_evidence, op: is, value: false}
+    then: {fact: heart_disease}
+    cf: -0.6
+    rationale: Clear vessels without ischaemic findings argue against CAD.
+
+  - id: R38
+    name: Normal perfusion and clear vessels
+    category: diagnosis
+    priority: 2
+    if:
+      - {fact: perfusion_defect, op: is, value: false}
+      - {fact: vessel_disease, op: is, value: false}
+    then: {fact: heart_disease}
+    cf: -0.5
+    rationale: Two independent normal investigations lower the likelihood of CAD.
+
+  - id: R39
+    name: Low risk-factor burden
+    category: diagnosis
+    priority: 2
+    if:
+      - {fact: risk_factor_burden, op: is, value: false}
+    then: {fact: heart_disease}
+    cf: -0.3
+    rationale: A low baseline risk profile is weak evidence against CAD.
+
+  # ------------------------------------------------------- recommendation --
+  - id: R40
+    name: Refer for cardiology review
+    category: recommendation
+    priority: 1
+    if:
+      - {fact: heart_disease, op: is, value: true, min_cf: 0.6}
+    then: {fact: recommend_cardiology_referral}
+    cf: 1.0
+    rationale: High-certainty conclusions warrant specialist review (demo logic only).
+
+  - id: R41
+    name: Address modifiable risk factors
+    category: recommendation
+    priority: 1
+    if:
+      - {fact: risk_factor_burden, op: is, value: true}
+      - {fact: heart_disease, op: is, value: false}
+    then: {fact: recommend_risk_factor_management}
+    cf: 0.8
+    rationale: Low CAD likelihood but raised risk factors suggests preventive care.
