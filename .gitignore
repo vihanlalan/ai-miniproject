@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+data/raw/
+.ipynb_checkpoints/
+.vscode/
+*.log

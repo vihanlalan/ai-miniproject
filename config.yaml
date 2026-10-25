@@ -1,0 +1,54 @@
+# SynthDx — single source of configuration.
+# All paths are relative to the project root unless absolute.
+
+seed: 42                     # master seed for demo artefacts (UI models)
+
+paths:
+  raw_dir: data/raw
+  results_dir: results
+  figures_dir: results/figures
+  models_dir: models
+
+data:
+  dataset: heart_cleveland
+  url: https://archive.ics.uci.edu/ml/machine-learning-databases/heart-disease/processed.cleveland.data
+  download_timeout: 10       # seconds; falls back to the bundled copy on failure
+  test_size: 0.30            # held-out REAL test set, never augmented
+  positive_fraction: 0.12    # minority (disease) share in the imbalanced training set
+  imbalance_test: false      # if true, the test set is downsampled too (very few positives!)
+
+expert:
+  rules_path: synthdx/expert/knowledge/rules.yaml
+  premise_threshold: 0.2     # MYCIN: a premise counts as "true" only if CF >= 0.2
+  decision_threshold: 0.2    # default CF cut-off for a positive diagnosis (calibrated per arm)
+  risk_bands: {medium: 0.2, high: 0.6}
+  calibration_metric: accuracy   # threshold objective on each training arm (accuracy | balanced_accuracy | f1)
+  tuning_shrinkage: 10       # pseudo-count pulling data-estimated CFs toward hand-written CFs
+
+gan:
+  ctgan:
+    epochs: 300
+    batch_size: 50           # must be a multiple of pac
+    pac: 10
+    generator_dim: [128, 128]
+    discriminator_dim: [128, 128]
+    embedding_dim: 64
+  cgan:
+    epochs: 600
+    batch_size: 32
+    noise_dim: 32
+    hidden_dim: 128
+    lr: 0.0002
+    label_smoothing: 0.9
+
+experiments:
+  seeds: [0, 1, 2, 3, 4]
+  generators: [ctgan, cgan]          # GANs used for arms B and D
+  classifiers: [logistic_regression, random_forest, gradient_boosting]
+  include_expert: true
+  smote_k_neighbors: 3
+  sensitive_attributes: [sex, age_group]
+  age_group_cutoff: 55
+
+ui:
+  quick_epochs: {ctgan: 30, cgan: 100}

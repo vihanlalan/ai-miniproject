@@ -1,0 +1,23 @@
+[project]
+name = "synthdx"
+version = "1.0.0"
+description = "Synthetic medical data generator with a diagnostic expert system (academic demo)"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::FutureWarning",
+    "ignore::UserWarning",
+]
+markers = ["slow: end-to-end tests that take longer than a few seconds"]
+
+[tool.coverage.run]
+source = ["synthdx"]
+omit = ["synthdx/app/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
