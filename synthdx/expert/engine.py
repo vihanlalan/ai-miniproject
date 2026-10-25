@@ -93,6 +93,11 @@ class InferenceEngine:
         self.max_cycles = max_cycles
         self.goal = goal
         self._order = {r.id: i for i, r in enumerate(self.kb.rules)}
+        # fact name -> rules with a premise on that fact (for incremental matching)
+        self._dependents: dict[str, list[Rule]] = {}
+        for r in self.kb.rules:
+            for fact in {c.fact for c in r.conditions}:
+                self._dependents.setdefault(fact, []).append(r)
 
     @classmethod
     def from_config(cls, cfg: dict, kb: KnowledgeBase | None = None) -> InferenceEngine:
@@ -132,14 +137,12 @@ class InferenceEngine:
         """Run forward chaining to quiescence, mutating ``wm``; return the trace."""
         fired: set[str] = set()
         trace: list[FiringRecord] = []
+        # Incremental matching (a light form of RETE): match every rule once, then
+        # after each firing re-match only rules that test the fact that changed.
+        matches = {r.id: self._match(r, wm) for r in self.kb.rules}
         for _cycle in range(self.max_cycles):
-            agenda = []
-            for rule in self.kb.rules:
-                if rule.id in fired:
-                    continue
-                ok, premise_cf, reasons = self._match(rule, wm)
-                if ok:
-                    agenda.append((rule, premise_cf, reasons))
+            agenda = [(r, matches[r.id][1], matches[r.id][2]) for r in self.kb.rules
+                      if r.id not in fired and matches[r.id][0]]
             if not agenda:
                 break
             rule, premise_cf, reasons = self._resolve(agenda)
@@ -147,6 +150,8 @@ class InferenceEngine:
             contribution = rule.cf * premise_cf
             before = wm.cf(rule.conclusion)
             after = wm.add_evidence(rule.conclusion, contribution, rule.id)
+            for dependent in self._dependents.get(rule.conclusion, ()):
+                matches[dependent.id] = self._match(dependent, wm)
             trace.append(FiringRecord(
                 step=len(trace) + 1, rule_id=rule.id, rule_name=rule.name,
                 conclusion=rule.conclusion, premise_cf=round(premise_cf, 4),
