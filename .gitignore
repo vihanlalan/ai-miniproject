@@ -1,12 +1,55 @@
-.venv/
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Testing & coverage
 .pytest_cache/
 .coverage
 htmlcov/
 coverage.xml
+.tox/
+
+# Data download cache
 data/raw/
+
+# Jupyter Notebook checkpoints
 .ipynb_checkpoints/
+
+# IDE & OS files
 .vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs
 *.log
 results_*.log
+logs/
+
+# Full experimental run outputs (keep pre-computed demo results)
+models/experiments/
+results/figures/
+results/*.csv
+results/*.json
+results/report.md
+
+# Preserve demo assets required for Streamlit offline demo
+!results/demo/
+!results/demo/**
+!models/*.pkl
