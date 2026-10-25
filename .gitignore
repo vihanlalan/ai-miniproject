@@ -9,3 +9,4 @@ data/raw/
 .ipynb_checkpoints/
 .vscode/
 *.log
+results_*.log
